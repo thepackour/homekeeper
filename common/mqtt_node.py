@@ -75,6 +75,7 @@ class Node:
 
         self._handlers = []          # (토픽 필터, 함수)
         self._lock = threading.Lock()
+        self._switch_lock = threading.Lock()
         self._connected = threading.Event()
         self._lost_at = time.monotonic()   # 처음엔 '끊긴 상태'에서 시작
         self._stop = threading.Event()
@@ -150,7 +151,7 @@ class Node:
 
     def switch_broker(self, index):
         """브로커를 수동으로 바꾼다. 허브 복구 후 주 브로커로 되돌릴 때 사용."""
-        with self._lock:
+        with self._switch_lock:
             if index == self.broker_index and self._connected.is_set():
                 return
             self._client.loop_stop()
