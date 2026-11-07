@@ -1,0 +1,29 @@
+# 누가 어떤 토픽에 발행할 수 있는지. 읽기는 모두 가능.
+pattern read home/#
+pattern write home/status/%u
+
+user door
+topic write home/door/#
+# 허브 다운 시 이어받기: 허브가 쓰는 토픽도 발행
+topic write home/state/#
+topic write home/alert
+topic write home/cmd/living/#
+
+user living
+topic write home/living/#
+
+user hub
+topic write home/state/#
+topic write home/alert
+topic write home/cmd/living/#
+
+# 명령은 월패드와 폰만
+user wallpad
+topic write home/cmd/mode
+topic write home/cmd/approve
+topic write home/cmd/dismiss
+
+user phone
+topic write home/cmd/mode
+topic write home/cmd/approve
+topic write home/cmd/dismiss
