@@ -1,0 +1,8 @@
+{
+  "brokers": [
+    {"host": "hub.local", "port": 1883},
+    {"host": "door.local", "port": 1883}
+  ],
+  "failover_sec": 3,
+  "heartbeat_sec": 1
+}
