@@ -1,0 +1,25 @@
+  {
+  "camera": {
+    "source": 0,
+    "width": 640,
+    "height": 480,
+    "exposure": null
+  },
+  "detector": {
+    "type": "yolo",
+    "yolo_model": "living/models/yolo11n.onnx",
+    "effdet_model": "living/models/efficientdet_lite0.tflite",
+    "imgsz": 320,
+    "conf": 0.4
+  },
+  "tracker": {
+    "max_dist": 0.25,
+    "max_age": 1.0
+  },
+  "line": {
+    "x": 0.5,
+    "in_dir": "right",
+    "margin": 0.03
+  },
+  "window_sec": 10
+}
