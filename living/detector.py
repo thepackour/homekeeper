@@ -48,41 +48,63 @@ class YoloDetector:
 
 
 class EfficientDetDetector:
-    """EfficientDet-Lite0 TFLite (LiteRT 인터프리터). 사람만 돌려준다.
+    """EfficientDet-Lite0 (NMS 포함 모델). 사람만 돌려준다.
 
-    후처리(NMS)가 들어 있는 모델을 쓴다(models/README.md 의 efficientdet_lite0_rpi.tflite).
-    mediapipe 는 파이 400(CPU에 AES 명령 없음)에서 실행이 안 돼서 쓰지 않는다.
+    .onnx  → onnxruntime 으로 실행(파이 400용. models/effdet_to_onnx.py 로 변환)
+    .tflite → LiteRT(ai-edge-litert 또는 tflite_runtime)로 실행
+    mediapipe·LiteRT 는 파이 400 CPU에 없는 AES 명령을 써서 파이에서는 .onnx 를 쓴다.
+    출력 4개: 상자(1,N,4: ymin,xmin,ymax,xmax 0~1), 클래스(1,N), 점수(1,N), 개수(1).
     """
 
     def __init__(self, model_path, conf=0.4, threads=4):
-        try:
-            from ai_edge_litert.interpreter import Interpreter
-        except ImportError:
-            from tflite_runtime.interpreter import Interpreter
-        self.it = Interpreter(model_path, num_threads=threads)
-        self.it.allocate_tensors()
-        inp = self.it.get_input_details()[0]
-        self.input_index, self.input_dtype = inp["index"], inp["dtype"]
-        self.size = (int(inp["shape"][2]), int(inp["shape"][1]))     # (너비, 높이)
-        # 출력 4개: 상자(1,N,4), 클래스(1,N), 점수(1,N), 개수(1). 클래스와 점수는 이름 순서로 구분
-        outs = sorted(self.it.get_output_details(), key=lambda d: d["name"])
-        self.boxes_i = next(d["index"] for d in outs if len(d["shape"]) == 3)
-        pair = [d["index"] for d in outs if len(d["shape"]) == 2]     # [점수(:1), 클래스(:2)]
-        self.scores_i, self.classes_i = pair
         self.conf = conf
+        if str(model_path).endswith(".onnx"):
+            import onnxruntime as ort
+            self.session = ort.InferenceSession(model_path, providers=["CPUExecutionProvider"])
+            inp = self.session.get_inputs()[0]
+            self.input_name = inp.name
+            self.size = (int(inp.shape[2]), int(inp.shape[1]))         # (너비, 높이)
+            self.input_dtype = np.uint8 if "uint8" in inp.type else np.float32
+            outs = sorted(self.session.get_outputs(), key=lambda o: o.name)
+            self.out_names = [o.name for o in outs]
+            self._run = self._run_onnx
+            shapes = [len(o.shape) for o in outs]
+        else:
+            try:
+                from ai_edge_litert.interpreter import Interpreter
+            except ImportError:
+                from tflite_runtime.interpreter import Interpreter
+            self.it = Interpreter(model_path, num_threads=threads)
+            self.it.allocate_tensors()
+            inp = self.it.get_input_details()[0]
+            self.input_index, self.input_dtype = inp["index"], inp["dtype"]
+            self.size = (int(inp["shape"][2]), int(inp["shape"][1]))
+            outs = sorted(self.it.get_output_details(), key=lambda d: d["name"])
+            self.out_idx = [d["index"] for d in outs]
+            self._run = self._run_tflite
+            shapes = [len(d["shape"]) for d in outs]
+        # 이름 순서(:0 개수, :1 점수, :2 클래스, :3 상자)에서 상자는 3차원, 점수·클래스는 2차원
+        self.boxes_i = shapes.index(3)
+        self.scores_i, self.classes_i = [i for i, n in enumerate(shapes) if n == 2]
+
+    def _run_onnx(self, x):
+        return self.session.run(self.out_names, {self.input_name: x})
+
+    def _run_tflite(self, x):
+        self.it.set_tensor(self.input_index, x)
+        self.it.invoke()
+        return [self.it.get_tensor(i) for i in self.out_idx]
 
     def detect(self, frame):
         h, w = frame.shape[:2]
-        x = cv2.resize(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), self.size)[None]
-        self.it.set_tensor(self.input_index, x.astype(self.input_dtype))
-        self.it.invoke()
-        boxes = self.it.get_tensor(self.boxes_i)[0]        # ymin, xmin, ymax, xmax (0~1)
-        classes = self.it.get_tensor(self.classes_i)[0]
-        scores = self.it.get_tensor(self.scores_i)[0]
+        x = cv2.resize(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), self.size)[None].astype(self.input_dtype)
+        out = self._run(x)
+        boxes, classes, scores = out[self.boxes_i][0], out[self.classes_i][0], out[self.scores_i][0]
         result = []
         for (y1, x1, y2, x2), c, sc in zip(boxes, classes, scores):
             if int(c) == 0 and sc >= self.conf:            # 0 = person
-                result.append((max(0.0, x1 * w), max(0.0, y1 * h), min(w, x2 * w), min(h, y2 * h), float(sc)))
+                result.append((max(0.0, float(x1) * w), max(0.0, float(y1) * h),
+                               min(w, float(x2) * w), min(h, float(y2) * h), float(sc)))
         return result
 
     def close(self):
