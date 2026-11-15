@@ -9,7 +9,10 @@
 
 --show 중: 스페이스 일시정지, s 지금 화면 캡처(PNG), q 다음 영상
 
-정답은 파일 이름에서 읽는다: S3_close_in2_01.mp4 → 들어옴 2, 나감 0
+정답은 파일 이름의 in/out 숫자에서 읽는다: S3_close_in2_01.mp4, in1_out1_01.mp4 → 들어옴 2/나감 0, 1/1
+시나리오(S 번호)는 없어도 된다. 요약은 정답 숫자만으로 계산한다.
+  꼬리물기 검출률: 2명 이상 들어온 영상에서 들어온 수를 정확히 센 비율
+  오경보율: 0~1명 들어온 영상에서 들어온 수를 더 많이 센 비율(허브가 꼬리물기로 오해할 경우)
 결과는 results.csv(영상별)로 저장하고 요약을 출력한다.
 """
 import argparse
@@ -26,14 +29,11 @@ from living.camera import Camera
 from living.counter import PeopleCounter
 from living.detector import make_detector
 
-TAILGATE = {"S3", "S4", "S6"}         # 꼬리물기 검출률
-NORMAL = {"S1", "S5", "S7", "S8"}     # 오경보율
-
 
 def truth_of(name):
     sc = re.match(r"(S\d+)", name)
-    tin = re.search(r"_in(\d+)", name)
-    tout = re.search(r"_out(\d+)", name)
+    tin = re.search(r"(?:^|_)in(\d+)", name)
+    tout = re.search(r"(?:^|_)out(\d+)", name)
     return (sc.group(1) if sc else "?", int(tin.group(1)) if tin else 0, int(tout.group(1)) if tout else 0)
 
 
@@ -166,19 +166,26 @@ def main():
     print("\n=== 요약 ===")
     for model in args.models:
         mine = [r for r in rows if r["model"] == model]
-        tg = [r for r in mine if r["scenario"] in TAILGATE]
-        nm = [r for r in mine if r["scenario"] in NORMAL]
-        ms = sum(r["ms"] for r in mine) / len(mine)
-        line = f"{model:7s} 전체 {sum(r['correct'] for r in mine)}/{len(mine)}"
+        n = len(mine)
+        ms = sum(r["ms"] for r in mine) / n
+        in_ok = sum(r["in"] == r["truth_in"] for r in mine)
+        out_ok = sum(r["out"] == r["truth_out"] for r in mine)
+        over = sum(r["in"] > r["truth_in"] for r in mine)
+        under = sum(r["in"] < r["truth_in"] for r in mine)
+        print(f"{model:7s} 전체 {sum(r['correct'] for r in mine)}/{n} | 들어옴 {in_ok}/{n} | 나감 {out_ok}/{n}"
+              f" | 들어옴 많이 셈 {over}, 적게 셈 {under} | 평균 {ms:.0f} ms")
+        tg = [r for r in mine if r["truth_in"] >= 2]
+        nm = [r for r in mine if r["truth_in"] <= 1]
+        line = "       "
         if tg:
-            line += f" | 꼬리물기 검출률 {sum(r['correct'] for r in tg) / len(tg):.0%} ({len(tg)}개)"
+            line += f" 꼬리물기 검출률 {sum(r['in'] == r['truth_in'] for r in tg) / len(tg):.0%} ({len(tg)}개)"
         if nm:
-            line += f" | 오경보율 {1 - sum(r['correct'] for r in nm) / len(nm):.0%} ({len(nm)}개)"
-        print(line + f" | 평균 {ms:.0f} ms")
+            line += f" | 오경보율 {sum(r['in'] > r['truth_in'] for r in nm) / len(nm):.0%} ({len(nm)}개)"
+        print(line)
         by = defaultdict(list)
         for r in mine:
-            by[r["scenario"]].append(r["correct"])
-        print("        " + "  ".join(f"{s} {sum(v)}/{len(v)}" for s, v in sorted(by.items())))
+            by[f"in{r['truth_in']}_out{r['truth_out']}"].append(r["correct"])
+        print("        정답별: " + "  ".join(f"{k} {sum(v)}/{len(v)}" for k, v in sorted(by.items())))
     print(f"\n영상별 결과: {args.out}")
 
 

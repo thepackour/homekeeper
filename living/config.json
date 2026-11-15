@@ -1,14 +1,15 @@
-  {
+{
   "camera": {
     "source": 0,
     "width": 640,
     "height": 480,
-    "exposure": null
+    "exposure": null,
+    "exposure_table": []
   },
   "detector": {
     "type": "yolo",
     "yolo_model": "living/models/yolo11n.onnx",
-    "effdet_model": "living/models/efficientdet_lite0.tflite",
+    "effdet_model": "living/models/efficientdet_lite0_rpi.tflite",
     "imgsz": 320,
     "conf": 0.4
   },
@@ -17,9 +18,19 @@
     "max_age": 1.0
   },
   "line": {
-    "x": 0.5,
+    "x": 0.6,
     "in_dir": "right",
-    "margin": 0.03
+    "margin": 0.03,
+    "emerge_zone": 0.4,
+    "near": 0.05
   },
-  "window_sec": 10
+  "window_sec": 10,
+  "max_window_sec": 15,
+  "warm_sec": 5,
+  "dark_lux": null,
+  "snapshot_quality": 70,
+  "arduino": {
+    "port": "auto",
+    "baud": 9600
+  }
 }
