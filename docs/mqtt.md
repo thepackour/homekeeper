@@ -9,7 +9,7 @@
 - 주소는 common/config.json 한 곳에서만 읽기
 
 ## 공통 규칙
-- 브로커: 주 hub.local / 예비 door.local, 포트 1883
+- 브로커: 주 hub.local / 예비 door.local, 포트 1883 (월패드·폰 웹 화면은 WebSocket 9001)
 - 토픽: home/<노드>/<내용>, 소문자
 - 메시지: JSON, 모든 메시지에 "t"(보낸 시각) 포함
 - QoS: 상태, 경보, 명령은 1 / 살아 있음 신호는 0
