@@ -107,12 +107,12 @@ acl_file homekeeper.acl
 | 받음 | `home/state/suspicion` | `{"level":0}` 의심 단계 0~3 |
 | 받음 | `home/state/judge` | `{"node":"hub"}` 판단 담당 |
 | 받음 | `home/alert` | `{"level":3,"type":"tailgate"}` (retain 아님) |
-| 받음 | `home/door/open` | `{"state":"open","by":"auth"}` |
+| 받음 | `home/door/open` | `{"state":"open","by":"auth"}` by: auth(인증) / approve(원격 허락) |
 | 받음 | `home/door/loiter` | `{"state":"start"}` → `over30` → `end` |
 | 받음 | `home/door/visitor` | `{"img":"base64"}` 방문자 사진 |
 | 받음 | `home/status/+` | `{"alive":1}` 1초마다, 끊기면 `{"alive":0}` |
 | 보냄 | `home/cmd/mode` | `{"mode":"away"}` |
-| 보냄 | `home/cmd/approve` | `{"ok":1}` 출입 허락 |
+| 보냄 | `home/cmd/approve` | `{"ok":1}` 출입 허락 (현관이 직접 듣고 문을 연다) |
 | 보냄 | `home/cmd/dismiss` | `{}` 경보 해제 (단계 2 이상일 때만) |
 | 보냄 | `home/status/wallpad` | `{"alive":1}` 1초마다 (월패드 계정만), LWT `{"alive":0}` |
 

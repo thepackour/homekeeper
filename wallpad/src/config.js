@@ -34,7 +34,7 @@ export const TOPICS = {
 
   // 보내는 것 (월패드, 폰만 보낼 수 있음. QoS 1)
   cmdMode: 'home/cmd/mode', // {"mode":"away"}
-  cmdApprove: 'home/cmd/approve', // {"ok":1} 출입 허락
+  cmdApprove: 'home/cmd/approve', // {"ok":1} 출입 허락. 현관이 직접 듣고 문을 연다
   cmdDismiss: 'home/cmd/dismiss', // {} 경보 해제
 }
 
@@ -65,7 +65,7 @@ export const DISMISS_FROM = 2 // 이 단계부터 '경보 해제' 버튼을 보�
 
 // 허브가 보내는 값을 한국어로. 모르는 값은 받은 글자 그대로 보여 준다.
 export const ALERT_TYPES = { tailgate: '꼬리물기' }
-export const DOOR_BY = { auth: '인증' }
+export const DOOR_BY = { auth: '인증', approve: '원격 허락' }
 export const LOITER = {
   start: '문 앞에 사람 있음',
   over30: '30초 넘게 서성임',
