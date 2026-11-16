@@ -10,6 +10,8 @@
 //   node tools/fake.mjs open auth               문 열림
 //   node tools/fake.mjs loiter start            서성임 (start, over30, end)
 //   node tools/fake.mjs visitor 사진.jpg        방문자 사진
+//   node tools/fake.mjs auth ok 2 card+pw none  현관 인증 결과 (ok/fail, 위험 점수, 방법, 얼굴)
+//   node tools/fake.mjs pwfail 1                현관 비밀번호 틀림 (몇 번째)
 //   node tools/fake.mjs alive door living hub   노드 살아 있음 (1초마다, Ctrl+C로 끊으면 LWT)
 //   node tools/fake.mjs watch                   화면이 보내는 명령, 월패드 살아 있음 보기
 //
@@ -41,6 +43,12 @@ const MESSAGES = {
   open: ([by = 'auth']) => ['home/door/open', { state: 'open', by }, false],
   loiter: ([state]) => ['home/door/loiter', { state }, false],
   visitor: ([file]) => ['home/door/visitor', { img: readFileSync(file).toString('base64') }, false],
+  auth: ([result = 'ok', score, method = 'card', face]) => [
+    'home/door/auth',
+    { result, method, ...(face && { face }), ...(score != null && { score: Number(score) }) },
+    false,
+  ],
+  pwfail: ([count]) => ['home/door/pwfail', { count: Number(count) }, false],
 }
 
 function fail(text) {
@@ -49,7 +57,7 @@ function fail(text) {
 }
 
 if (MESSAGES[cmd]) {
-  if (vals.length === 0 && !['alert', 'open'].includes(cmd)) fail(`값이 필요해요. 예: node tools/fake.mjs ${cmd} ...`)
+  if (vals.length === 0 && !['alert', 'open', 'auth'].includes(cmd)) fail(`값이 필요해요. 예: node tools/fake.mjs ${cmd} ...`)
   const [topic, body, retain] = MESSAGES[cmd](vals)
   const client = connect()
   client.on('error', (err) => fail(`접속 실패: ${err.message}`))
@@ -95,5 +103,5 @@ if (MESSAGES[cmd]) {
     console.log(`${new Date().toLocaleTimeString('ko-KR', { hour12: false })} ${line}`)
   })
 } else {
-  console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(0, 16).join('\n'))
+  console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(0, 18).join('\n'))
 }

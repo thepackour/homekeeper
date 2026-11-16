@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useHome } from './useHome'
 import { Login, Settings } from './Login'
 import { loadBrokers, loadLogin, saveBrokers, saveLogin } from './saved'
-import { DISMISS_FROM, LEVELS, LOITER, MODES, NODES, label } from './config'
+import { AUTH_METHOD, DISMISS_FROM, FACE, LEVELS, LOITER, MODES, NODES, RISK_RULE, label, riskStep } from './config'
 
 const fmtTime = (d) =>
   d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -238,6 +238,34 @@ function NodeRow({ home, online }) {
   )
 }
 
+// 현관이 마지막 인증 때 매긴 위험 점수 (home/door/auth). "지금" 점수는 허브의 home/state/risk 몫
+function RiskLine({ auth }) {
+  if (!auth) return <p className="risk risk-none">위험 점수: 아직 인증 없음</p>
+  if (auth.score == null) {
+    return (
+      <p className="risk risk-none">
+        마지막 인증 {fmtTime(auth.at)} · {auth.ok ? '성공' : '등록 안 된 카드'}
+      </p>
+    )
+  }
+  const step = riskStep(auth.score)
+  const details = [
+    AUTH_METHOD[auth.method] ?? auth.method,
+    auth.ok ? '성공' : '실패',
+    auth.face && (FACE[auth.face] ?? auth.face),
+    fmtTime(auth.at),
+  ].filter(Boolean)
+  return (
+    <div className={`risk risk-${step.cls}`}>
+      <p className="risk-head">
+        <strong>위험 {auth.score}점</strong> {step.title}
+      </p>
+      <p className="risk-detail">마지막 인증 · {details.join(' · ')}</p>
+      <p className="risk-rule">{RISK_RULE}</p>
+    </div>
+  )
+}
+
 function DoorCard({ door, online, onApprove }) {
   const { open, loiter, visitor } = door
   return (
@@ -255,6 +283,7 @@ function DoorCard({ door, online, onApprove }) {
       <p className="card-sub">
         {open ? `마지막 문 열림 ${fmtTime(open.at)}${open.by ? ` (${open.by})` : ''}` : '문 열림 기록 없음'}
       </p>
+      <RiskLine auth={door.auth} />
       <button className="btn-primary" disabled={!online} onClick={onApprove}>
         출입 허락
       </button>

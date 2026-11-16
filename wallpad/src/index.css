@@ -396,6 +396,51 @@ button:disabled {
   font-weight: 600;
 }
 
+/* 현관 위험 점수 (마지막 인증) */
+.risk {
+  margin-bottom: 14px;
+}
+
+.risk-head {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.risk-head strong {
+  margin-right: 4px;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.risk-low .risk-head strong {
+  color: var(--ok);
+}
+
+.risk-mid .risk-head strong {
+  color: var(--warn);
+}
+
+.risk-high .risk-head strong {
+  color: var(--alarm);
+}
+
+.risk-detail {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.risk-rule {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.risk-none {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
 /* 기록 */
 .log {
   flex: 1;

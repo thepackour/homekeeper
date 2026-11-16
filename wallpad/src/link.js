@@ -21,6 +21,8 @@ const SUBSCRIBE = [
   TOPICS.doorOpen,
   TOPICS.doorLoiter,
   TOPICS.doorVisitor,
+  TOPICS.doorAuth,
+  TOPICS.doorPwfail,
   TOPICS.status,
 ]
 

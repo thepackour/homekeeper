@@ -9,7 +9,7 @@
   0 정상(초록) / 1 주의, 문 앞 서성임(노랑) / 2 경고, 서성임 30초 이상 또는 외출 중 문 열림 후 30초 내 미인증(주황) / 3 경보, 꼬리물기(빨강).
   단계 2 이상이면 **경보 해제** 버튼이 나온다.
 - **기기 상태 줄**: `home/status/<노드>`를 보고, `{"alive":0}`(LWT)이 오거나 3초 넘게 신호가 없으면 "거실 응답 없음"처럼 빨갛게 표시. 오른쪽은 판단 담당(`home/state/judge`).
-- **현관 칸**: 방문자 사진(`home/door/visitor`), 서성임 상태(`home/door/loiter`), 마지막 문 열림(`home/door/open`), **출입 허락** 버튼.
+- **현관 칸**: 방문자 사진(`home/door/visitor`), 서성임 상태(`home/door/loiter`), 마지막 문 열림(`home/door/open`), 마지막 인증의 위험 점수(`home/door/auth`), **출입 허락** 버튼.
 - **월패드 계정이면** 1초마다 `home/status/wallpad {"alive":1}`을 보내고, LWT `{"alive":0}`을 걸어 둔다. 폰은 규약 목록에 없어서 보내지 않는다.
 
 ## 처음 켤 때 (로그인)
@@ -55,6 +55,8 @@
    node tools/fake.mjs loiter start            # start, over30, end
    node tools/fake.mjs visitor C:\Windows\Web\Screen\img105.jpg   # 방문자 사진
    node tools/fake.mjs open auth               # 문 열림
+   node tools/fake.mjs auth ok 2 card+pw none  # 현관 인증 결과 (위험 점수)
+   node tools/fake.mjs pwfail 1                # 현관 비밀번호 틀림
    node tools/fake.mjs alert 3 tailgate        # 경보
    node tools/fake.mjs alive door living hub   # 노드 살아 있음 (Ctrl+C로 끊으면 "응답 없음")
    node tools/fake.mjs watch                   # 화면이 보내는 명령 보기
@@ -110,6 +112,8 @@ acl_file homekeeper.acl
 | 받음 | `home/door/open` | `{"state":"open","by":"auth"}` by: auth(인증) / approve(원격 허락) |
 | 받음 | `home/door/loiter` | `{"state":"start"}` → `over30` → `end` |
 | 받음 | `home/door/visitor` | `{"img":"base64"}` 방문자 사진 |
+| 받음 | `home/door/auth` | `{"result":"ok","method":"card+pw","face":"match","score":2}` 마지막 인증, 위험 점수 |
+| 받음 | `home/door/pwfail` | `{"count":2}` 비밀번호 틀림 (기록에만) |
 | 받음 | `home/status/+` | `{"alive":1}` 1초마다, 끊기면 `{"alive":0}` |
 | 보냄 | `home/cmd/mode` | `{"mode":"away"}` |
 | 보냄 | `home/cmd/approve` | `{"ok":1}` 출입 허락 (현관이 직접 듣고 문을 연다) |

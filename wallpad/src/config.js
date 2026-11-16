@@ -30,6 +30,8 @@ export const TOPICS = {
   doorOpen: 'home/door/open', // {"state":"open","by":"auth"}
   doorLoiter: 'home/door/loiter', // {"state":"start"} → {"state":"over30"} → {"state":"end"}
   doorVisitor: 'home/door/visitor', // {"img":"base64"} 방문자 사진
+  doorAuth: 'home/door/auth', // {"result":"ok|fail","method":"card+pw","face":"match","score":2} 인증 결과
+  doorPwfail: 'home/door/pwfail', // {"count":2} 현관 비밀번호 틀림
   status: 'home/status/+', // {"alive":1} 1초마다, 끊기면 LWT {"alive":0}
 
   // 보내는 것 (월패드, 폰만 보낼 수 있음. QoS 1)
@@ -70,6 +72,21 @@ export const LOITER = {
   start: '문 앞에 사람 있음',
   over30: '30초 넘게 서성임',
   end: '문 앞 비어 있음',
+}
+
+// 현관 인증 (제안서 7.3 위험 점수). 점수가 높을수록 필요한 인증이 늘어난다
+export const AUTH_METHOD = {
+  card: '카드',
+  'card+pw': '카드 + 비밀번호',
+  'card+approve': '카드 + 허락',
+  'card+pw+approve': '카드 + 비밀번호 + 허락',
+}
+export const FACE = { match: '얼굴 일치', mismatch: '모르는 얼굴', none: '얼굴 못 봄' }
+export const RISK_RULE = '0~1점 카드 · 2~3점 비밀번호 · 4점 이상 허락까지'
+export function riskStep(score) {
+  if (score >= 4) return { cls: 'high', title: '높음' }
+  if (score >= 2) return { cls: 'mid', title: '보통' }
+  return { cls: 'low', title: '낮음' }
 }
 
 export const label = (list, key) => list.find((x) => x.key === key)?.label ?? key

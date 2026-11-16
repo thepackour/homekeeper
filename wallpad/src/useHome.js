@@ -2,6 +2,7 @@ import { useEffect, useReducer, useRef } from 'react'
 import { Link } from './link'
 import {
   ALERT_TYPES,
+  AUTH_METHOD,
   DOOR_BY,
   LEVELS,
   MODES,
@@ -22,7 +23,7 @@ const initialState = {
   occupancy: null, // {n, at}
   level: null, // 0~3, home/state/suspicion 값만 따른다
   judge: null, // 'hub' | 'door' ...
-  door: { open: null, loiter: null, visitor: null },
+  door: { open: null, loiter: null, visitor: null, auth: null }, // auth: 마지막 인증 {ok, method, face, score, at}
   nodes: {}, // {door: {alive, seen}}
   nodeState: {}, // {door: 'ok' | 'lost' | 'checking'}
   log: [],
@@ -111,6 +112,25 @@ function onMessage(state, { topic, data, retained, at }) {
       if (s === 'over30') return addLog(next, at, 'warn', '문 앞 30초 넘게 서성임')
       if (s === 'end') return addLog(next, at, 'info', '문 앞 서성임 끝')
       return next
+    }
+    case TOPICS.doorAuth: {
+      // 등록 안 된 카드는 face, score 없이 {"result":"fail","method":"card"} 로 온다
+      const ok = data.result === 'ok'
+      const score = typeof data.score === 'number' ? data.score : null
+      const auth = { ok, method: data.method ?? null, face: data.face ?? null, score, at }
+      const next = { ...state, door: { ...state.door, auth } }
+      const how = AUTH_METHOD[auth.method] ?? auth.method ?? ''
+      const text =
+        score == null
+          ? ok
+            ? `출입 인증 성공 (${how})`
+            : '등록 안 된 카드'
+          : `출입 인증 ${ok ? '성공' : '실패'} · 위험 ${score}점 · ${how}`
+      return addLog(next, at, ok ? 'info' : 'warn', text)
+    }
+    case TOPICS.doorPwfail: {
+      const n = Number(data.count)
+      return addLog(state, at, 'warn', Number.isFinite(n) ? `현관 비밀번호 틀림 (${n}번째)` : '현관 비밀번호 틀림')
     }
     case TOPICS.doorVisitor: {
       const src = imageSrc(data.img)
