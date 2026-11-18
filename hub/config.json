@@ -1,0 +1,11 @@
+{
+  "serial": "/dev/ttyACM0",
+  "ntfy_url": "https://ntfy.sh",
+  "camera_sec": 10,
+  "window_sec": 22,
+  "arming_sec": 30,
+  "away_open_sec": 30,
+  "loiter_keep_sec": 600,
+  "motion_after_auth_sec": 60,
+  "watch_nodes": ["door", "living"]
+}

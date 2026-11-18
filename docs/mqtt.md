@@ -48,9 +48,9 @@
 ### ③ 허브 → 전체(retain)
 | 토픽 | 내용 | 페이로드 예시 | 비고 |
 |---|---|---|---|
-| `home/state/mode` | | `{"mode":"home"}` | home / away / sleep |
+| `home/state/mode` | | `{"mode":"home"}` | home / away / sleep. 외출 준비 30초 동안은 `{"mode":"away","until":<끝 시각>}` |
 | `home/state/occupancy` | 집 안 인원 | `{"n":2}` | |
-| `home/state/suspicion` | 의심 단계 | `{"level":0}` | |
+| `home/state/suspicion` | 의심 단계 | `{"level":0}` | 원인 `reason` 같이 감 (예: `{"level":3,"reason":"tailgate"}`) |
 | `home/state/risk` | 점수 요소 | `{"away":1,"loiter_until":...}` | |
 | `home/state/judge` | 판단 담당 | `{"node":"hub"}` | |
 | `home/alert` | 경보 | `{"level":3,"type":"tailgate"}` | retain 아님 |

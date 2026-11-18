@@ -1,2 +1,5 @@
 common/secrets.json
 __pycache__/
+hub/hub_secret.json
+hub/homekeeper.db
+hub/arduino_c/.pio/

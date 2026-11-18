@@ -1,0 +1,19 @@
+# 허브 Pi 켜지면 hub.py 자동 실행
+# 설치: sudo cp hub/homekeeper-hub.service /etc/systemd/system/
+#       sudo systemctl enable --now homekeeper-hub
+# 로그: journalctl -u homekeeper-hub -f
+# 시연용 "허브 끄기": sudo systemctl stop homekeeper-hub  (브로커는 살아 있음)
+[Unit]
+Description=HomeKeeper hub
+After=network-online.target mosquitto.service
+Wants=network-online.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/homekeeper
+ExecStart=/home/pi/hk-venv/bin/python hub/hub.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
