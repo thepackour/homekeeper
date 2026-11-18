@@ -1,3 +1,4 @@
 models/
 face_db/
 __pycache__/
+door_data.json

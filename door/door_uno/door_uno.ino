@@ -1,17 +1,22 @@
 // 현관 우노: 부품을 읽고 움직이기만 한다. 판단은 Pi가 한다.
 //
-// 우노 -> Pi (9600, 한 줄씩): READY / BTN / IR:0x0C / DIST:25 (못 재면 DIST:-1)
+// 우노 -> Pi (9600, 한 줄씩): READY / BTN / IR:0x0C / DIST:25 (못 재면 DIST:-1) / CARD:A1B2C3D4
 // Pi -> 우노: LCD0:글자 / LCD1:글자 / BEEP:주파수,밀리초
 //
-// Pi가 LCD 명령을 보내기 전에는 LCD 둘째 줄에 센서 값을 보여 줘서 우노만으로 부품을 확인할 수 있다.
+// Pi가 LCD 명령을 보내기 전에는 LCD에 센서 값과 카드 번호를 보여 줘서 우노만으로 부품을 확인할 수 있다.
+// 카드 리더 RC522는 라이브러리 관리자에서 "MFRC522" (GithubCommunity)를 설치해야 컴파일된다.
+#include <SPI.h>
 #include <Wire.h>
+#include <MFRC522.h>
 
 const uint8_t LCD_ADDRESS = 0x3F;
 const uint8_t BUTTON_PIN = 2;
 const uint8_t IR_PIN = 3;
 const uint8_t TRIG_PIN = 8;
 const uint8_t ECHO_PIN = 9;
-const uint8_t BUZZER_PIN = 12;
+const uint8_t BUZZER_PIN = 6;      // D12는 카드 리더(MISO)가 써서 D6으로 옮김
+const uint8_t RC522_SS_PIN = 10;   // RC522 SDA. SPI는 D11(MOSI), D12(MISO), D13(SCK) 고정
+const uint8_t RC522_RST_PIN = 7;
 
 const uint8_t LCD_RS = 0x01;
 const uint8_t LCD_ENABLE = 0x04;
@@ -20,6 +25,8 @@ const uint8_t LCD_BACKLIGHT = 0x08;
 const unsigned long DISTANCE_INTERVAL_MS = 300;
 const unsigned long DEBOUNCE_MS = 50;
 const unsigned int MAX_BEEP_MS = 2000;
+const unsigned long CARD_POLL_MS = 150;   // 카드가 없을 때 한 번 확인에 약 25ms 걸려서 가끔만 본다
+const unsigned long SAME_CARD_MS = 1500;  // 같은 카드가 바로 다시 읽히면 무시
 
 // IR (NEC 방식) 수신 상태. 신호가 바뀔 때마다 인터럽트에서 처리한다.
 volatile unsigned long irLastEdge = 0;
@@ -28,6 +35,11 @@ volatile uint8_t irBitCount = 0;
 volatile uint32_t irBits = 0;
 volatile uint32_t irFrame = 0;
 volatile bool irFrameReady = false;
+
+MFRC522 cardReader(RC522_SS_PIN, RC522_RST_PIN);
+char lastCard[21] = "";
+unsigned long lastCardTime = 0;
+unsigned long lastCardPoll = 0;
 
 char inputLine[32];
 uint8_t inputLength = 0;
@@ -149,6 +161,40 @@ void checkIr() {
   Serial.println(command, HEX);
 }
 
+void checkCard() {
+  if (millis() - lastCardPoll < CARD_POLL_MS) {
+    return;
+  }
+  lastCardPoll = millis();
+  if (!cardReader.PICC_IsNewCardPresent() || !cardReader.PICC_ReadCardSerial()) {
+    return;
+  }
+
+  // 카드 번호(UID)를 16진수 글자로 만든다. 보통 4바이트라 8글자.
+  char uid[21];
+  uint8_t size = min(cardReader.uid.size, (byte)10);
+  for (uint8_t i = 0; i < size; i++) {
+    snprintf(uid + i * 2, 3, "%02X", cardReader.uid.uidByte[i]);
+  }
+  uid[size * 2] = '\0';
+  cardReader.PICC_HaltA();  // 카드를 대고 있어도 다시 읽히지 않게 재운다
+  cardReader.PCD_StopCrypto1();
+
+  bool repeated = strcmp(uid, lastCard) == 0 && millis() - lastCardTime < SAME_CARD_MS;
+  lastCardTime = millis();
+  if (repeated) {
+    return;
+  }
+  strcpy(lastCard, uid);
+  Serial.print(F("CARD:"));
+  Serial.println(uid);
+  if (!piConnected) {
+    char text[17];
+    snprintf(text, sizeof(text), "CARD:%s", uid);
+    lcdLine(0, text);
+  }
+}
+
 void checkButton() {
   bool reading = digitalRead(BUTTON_PIN);
   if (reading != lastButtonReading) {
@@ -254,6 +300,23 @@ void setup() {
   lcdInit();
   lcdLine(0, "HOMEKEEPER");
 
+  SPI.begin();
+  cardReader.PCD_Init();
+  // 칩 버전을 읽어 배선을 확인한다. 0x00이나 0xFF면 선이 잘못된 것.
+  byte version = cardReader.PCD_ReadRegister(MFRC522::VersionReg);
+  char text[17];
+  if (version == 0x00 || version == 0xFF) {
+    snprintf(text, sizeof(text), "RC522 NOT FOUND");
+  } else {
+    snprintf(text, sizeof(text), "RC522 OK %02X", version);
+  }
+  lcdLine(0, text);
+  Serial.print(F("RC522:0x"));
+  if (version < 0x10) {
+    Serial.print('0');
+  }
+  Serial.println(version, HEX);
+
   attachInterrupt(digitalPinToInterrupt(IR_PIN), onIrEdge, CHANGE);
 
   const unsigned int notes[] = {1047, 1319, 1568};
@@ -268,5 +331,6 @@ void loop() {
   readSerial();
   checkButton();
   checkIr();
+  checkCard();
   checkDistance();
 }

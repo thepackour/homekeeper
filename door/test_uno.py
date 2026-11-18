@@ -1,26 +1,14 @@
-"""Pi에서 우노 연결을 확인한다. 버튼, 리모컨, 초음파 값이 화면과 LCD에 나온다. 끝내기는 Ctrl+C."""
-import re
-from pathlib import Path
+"""Pi에서 우노 연결을 확인한다. 버튼, 리모컨, 카드, 초음파 값이 화면과 LCD에 나온다. 끝내기는 Ctrl+C."""
+import argparse
 
-from uno_link import Uno
+from uno_link import Uno, load_ir_labels
 
-CODE_FILE = Path(__file__).with_name("IR_CODES.md")
-ROW = re.compile(r"^\| (.+?) \| 0x[0-9A-F]{2,4} \| (0x[0-9A-F]{2}) \|$")
+parser = argparse.ArgumentParser(description="Check the Uno parts")
+parser.add_argument("--port", help="Uno serial port (e.g. COM5). Found automatically if omitted")
+args = parser.parse_args()
 
-
-def load_labels():
-    if not CODE_FILE.exists():
-        return {}
-    labels = {}
-    for line in CODE_FILE.read_text(encoding="utf-8").splitlines():
-        match = ROW.match(line)
-        if match:
-            labels[match[2]] = match[1]
-    return labels
-
-
-labels = load_labels()
-uno = Uno()
+labels = load_ir_labels()
+uno = Uno(args.port)
 print(f"Uno connected on {uno.port}. Quit: Ctrl+C")
 uno.lcd(0, "PI LINK OK")
 uno.lcd(1, "PRESS A BUTTON")
@@ -28,7 +16,9 @@ uno.beep(1568, 200)
 
 buttons = 0
 remote_presses = 0
+cards = 0
 distances = 0
+good_distances = 0
 last_distance = None
 try:
     while True:
@@ -46,9 +36,16 @@ try:
             label = labels.get(code, code)
             print(f"[REMOTE] {label}")
             uno.lcd(1, f"REMOTE {label}")
+        elif line.startswith("CARD:"):
+            cards += 1
+            print(f"[CARD] {line[5:]}")
+            uno.beep(1568, 120)
+            uno.lcd(1, line)
         elif line.startswith("DIST:"):
             distances += 1
             value = int(line[5:])
+            if value >= 0:
+                good_distances += 1
             if value != last_distance and distances % 3 == 0:
                 print("[DISTANCE] " + ("no echo" if value < 0 else f"{value} cm"))
                 last_distance = value
@@ -59,5 +56,6 @@ finally:
     print("LCD     : OK if the screen shows PI LINK OK")
     print(f"Button  : {'OK' if buttons else 'not pressed'} ({buttons})")
     print(f"Remote  : {'OK' if remote_presses else 'no signal'} ({remote_presses})")
-    print(f"Distance: {'OK' if last_distance is not None and last_distance >= 0 else 'no reading'}")
+    print(f"Card    : {'OK' if cards else 'no card'} ({cards})")
+    print(f"Distance: {'OK' if good_distances else 'no reading'} ({good_distances} readings)")
     uno.close()
