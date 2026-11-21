@@ -641,3 +641,78 @@ button:disabled {
     margin-left: 0;
   }
 }
+
+/* 보낸 명령 확정 대기 (모드 버튼, 허락) */
+.seg button.is-pending {
+  color: var(--warn);
+  font-weight: 700;
+}
+
+.approval {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  background: #fdf6e7;
+  color: #92400e;
+}
+
+.approval-ok {
+  background: #e9f7ee;
+  color: #166534;
+}
+
+.approval-timeout {
+  background: #fdecec;
+  color: #991b1b;
+}
+
+/* PIN 키패드 (터치용) */
+.pinpad {
+  align-items: center;
+  text-align: center;
+}
+
+.pinpad h2 {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.pin-dots {
+  font-size: 30px;
+  letter-spacing: 4px;
+}
+
+.pin-msg {
+  min-height: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--alarm);
+}
+
+.pin-keys {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.pin-keys button {
+  padding: 16px 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.pin-keys .pin-fn {
+  font-size: 16px;
+  color: var(--muted);
+}
+
+.pin-keys button:active {
+  background: #eef1f5;
+}

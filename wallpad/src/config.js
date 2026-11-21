@@ -13,6 +13,9 @@ export const WS_PORT = 9001 // broker/mosquitto.conf 의 WebSocket 리스너
 export const FAILOVER_SEC = common.failover_sec ?? 3
 export const HEARTBEAT_SEC = common.heartbeat_sec ?? 1 // 월패드 살아 있음 신호 주기
 export const STALE_SEC = 3 // 노드 살아 있음 신호가 이만큼 안 오면 '응답 없음'
+export const CMD_TIMEOUT_SEC = 3 // 모드 변경, 경보 해제를 허브가 이 안에 확정 안 하면 '허브 응답 없음'
+export const APPROVE_ACK_SEC = 5 // 허락 후 이 안에 home/door/open {"by":"approve"} 가 없으면 '현관 응답 없음'
+export const VISITOR_REQ_SEC = 30 // 방문자 사진을 받은 뒤 이 시간 안의 허락에만 req(어떤 방문인지)를 붙인다
 
 // 로그인 계정 (broker/homekeeper.acl 에서 명령을 보낼 수 있는 둘)
 export const ACCOUNTS = [
@@ -36,7 +39,7 @@ export const TOPICS = {
 
   // 보내는 것 (월패드, 폰만 보낼 수 있음. QoS 1)
   cmdMode: 'home/cmd/mode', // {"mode":"away"}
-  cmdApprove: 'home/cmd/approve', // {"ok":1} 출입 허락. 현관이 직접 듣고 문을 연다
+  cmdApprove: 'home/cmd/approve', // {"ok":1,"id":"...","req":방문자 t} 허브 브로커 + 현관 직통(direct.js) 둘 다로
   cmdDismiss: 'home/cmd/dismiss', // {} 경보 해제
 }
 

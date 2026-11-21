@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useHome } from './useHome'
 import { Login, Settings } from './Login'
+import { PinChange, PinPad } from './PinPad'
 import { loadBrokers, loadLogin, saveBrokers, saveLogin } from './saved'
 import { AUTH_METHOD, DISMISS_FROM, FACE, LEVELS, LOITER, MODES, NODES, RISK_RULE, label, riskStep } from './config'
 
@@ -71,6 +72,8 @@ function Home({ login, brokers, onAuthFail, onLogout, onBrokers }) {
   const home = useHome(login, brokers)
   const now = useNow(10_000)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [pinAsk, setPinAsk] = useState(null) // {title, then} PIN 맞으면 then()
+  const [pinChange, setPinChange] = useState(false)
   const online = home.conn === 'online'
   const broker = brokers[home.brokerIndex]
 
@@ -81,9 +84,14 @@ function Home({ login, brokers, onAuthFail, onLogout, onBrokers }) {
   const approve = () => {
     if (window.confirm('현관 출입을 허락할까요?')) home.approve()
   }
-  const dismiss = () => {
-    if (window.confirm('경보를 해제할까요?')) home.dismiss()
+  // 경보 해제와 경계 풀기(외출·취침 → 재택)는 PIN 을 묻는다
+  const dismiss = () => setPinAsk({ title: '경보 해제 PIN', then: home.dismiss })
+  const setMode = (mode) => {
+    if (mode === 'home' && ['away', 'sleep'].includes(home.mode?.value)) {
+      setPinAsk({ title: '재택으로 바꾸기 PIN', then: () => home.setMode(mode) })
+    } else home.setMode(mode)
   }
+  const pendingMode = home.pending.mode?.value
 
   return (
     <div className={`app ${online ? '' : 'is-offline'}`}>
@@ -112,16 +120,24 @@ function Home({ login, brokers, onAuthFail, onLogout, onBrokers }) {
         <section className="card">
           <h2 className="card-label">보안 모드</h2>
           <p className="card-value">{home.mode ? label(MODES, home.mode.value) : '—'}</p>
-          <p className="card-sub">{home.mode ? `${fmtTime(home.mode.at)} 받음` : '받은 값 없음'}</p>
+          <p className="card-sub">
+            {pendingMode
+              ? `${label(MODES, pendingMode)}(으)로 바꾸는 중… 허브 확정 대기`
+              : home.mode
+                ? `${fmtTime(home.mode.at)} 받음`
+                : '받은 값 없음'}
+          </p>
           <div className="seg" role="group" aria-label="모드 변경">
             {MODES.map((m) => (
               <button
                 key={m.key}
                 aria-pressed={home.mode?.value === m.key}
-                disabled={!online || home.mode?.value === m.key}
-                onClick={() => home.setMode(m.key)}
+                className={pendingMode === m.key ? 'is-pending' : ''}
+                disabled={!online || !!pendingMode || home.mode?.value === m.key}
+                onClick={() => setMode(m.key)}
               >
                 {m.label}
+                {pendingMode === m.key && '…'}
               </button>
             ))}
           </div>
@@ -136,7 +152,7 @@ function Home({ login, brokers, onAuthFail, onLogout, onBrokers }) {
           <p className="card-sub">{home.occupancy ? `${fmtTime(home.occupancy.at)} 받음` : '받은 값 없음'}</p>
         </section>
 
-        <DoorCard door={home.door} online={online} onApprove={approve} />
+        <DoorCard door={home.door} approval={home.approval} canApprove={online || home.direct} onApprove={approve} />
       </div>
 
       <section className="log">
@@ -167,9 +183,25 @@ function Home({ login, brokers, onAuthFail, onLogout, onBrokers }) {
             onBrokers(next)
           }}
           onLogout={onLogout}
+          onChangePin={() => {
+            setSettingsOpen(false)
+            setPinChange(true)
+          }}
           onClose={() => setSettingsOpen(false)}
         />
       )}
+
+      {pinAsk && (
+        <PinPad
+          title={pinAsk.title}
+          onOk={() => {
+            setPinAsk(null)
+            pinAsk.then()
+          }}
+          onCancel={() => setPinAsk(null)}
+        />
+      )}
+      {pinChange && <PinChange onDone={() => setPinChange(false)} />}
     </div>
   )
 }
@@ -266,7 +298,14 @@ function RiskLine({ auth }) {
   )
 }
 
-function DoorCard({ door, online, onApprove }) {
+// 허락을 보낸 뒤: 어느 길로 갔는지, 현관이 실제로 문을 열었는지
+const APPROVAL_TEXT = {
+  null: (a) => `허락 보냄 (${a.via.join(', ')}) · 문 열림 확인 기다리는 중`,
+  ok: () => '허락으로 문 열림 확인',
+  timeout: () => '현관 응답 없음 · 문이 열렸는지 확인하세요',
+}
+
+function DoorCard({ door, approval, canApprove, onApprove }) {
   const { open, loiter, visitor } = door
   return (
     <section className="card">
@@ -284,7 +323,10 @@ function DoorCard({ door, online, onApprove }) {
         {open ? `마지막 문 열림 ${fmtTime(open.at)}${open.by ? ` (${open.by})` : ''}` : '문 열림 기록 없음'}
       </p>
       <RiskLine auth={door.auth} />
-      <button className="btn-primary" disabled={!online} onClick={onApprove}>
+      {approval && (
+        <p className={`approval approval-${approval.result ?? 'wait'}`}>{APPROVAL_TEXT[approval.result](approval)}</p>
+      )}
+      <button className="btn-primary" disabled={!canApprove || (approval && !approval.result)} onClick={onApprove}>
         출입 허락
       </button>
     </section>

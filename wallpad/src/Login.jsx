@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ACCOUNTS, DEFAULT_BROKERS, WS_PORT, label } from './config'
 import { wsUrl } from './link'
+import { isDefaultPin } from './pin'
 
 // 주, 예비 브로커 주소 입력 칸 (로그인 화면과 설정에서 같이 씀)
 function BrokerFields({ value, onChange }) {
@@ -93,7 +94,7 @@ export function Login({ brokers, failed, onSubmit }) {
 }
 
 // 화면 오른쪽 위 '설정': 계정, 연결된 브로커, 주소 바꾸기
-export function Settings({ login, brokers, brokerIndex, online, onBackToPrimary, onBrokers, onLogout, onClose }) {
+export function Settings({ login, brokers, brokerIndex, online, onBackToPrimary, onBrokers, onLogout, onChangePin, onClose }) {
   const [addr, setAddr] = useState(brokers)
   const [error, setError] = useState(null)
   const changed = addr.some((a, i) => a.trim() !== brokers[i])
@@ -142,6 +143,16 @@ export function Settings({ login, brokers, brokerIndex, online, onBackToPrimary,
               주 브로커로 돌아가기
             </button>
           )}
+        </div>
+
+        <div className="sheet-row">
+          <div>
+            <p className="card-label">PIN</p>
+            <p className="hint">경보 해제, 재택으로 바꿀 때 물어요{isDefaultPin() ? ' · 지금 기본 1234' : ''}</p>
+          </div>
+          <button type="button" className="btn-line" onClick={onChangePin}>
+            PIN 바꾸기
+          </button>
         </div>
 
         <BrokerFields value={addr} onChange={setAddr} />

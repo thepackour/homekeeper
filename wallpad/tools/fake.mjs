@@ -14,6 +14,7 @@
 //   node tools/fake.mjs pwfail 1                현관 비밀번호 틀림 (몇 번째)
 //   node tools/fake.mjs alive door living hub   노드 살아 있음 (1초마다, Ctrl+C로 끊으면 LWT)
 //   node tools/fake.mjs watch                   화면이 보내는 명령, 월패드 살아 있음 보기
+//   node tools/fake.mjs answer                  허브·현관처럼 명령에 답하기 (모드 확정, 경보 해제, 허락→문 열림)
 //
 // 옵션: --broker mqtt://localhost:1883  --user hub --pass 비밀번호
 import { readFileSync } from 'node:fs'
@@ -102,6 +103,34 @@ if (MESSAGES[cmd]) {
     }
     console.log(`${new Date().toLocaleTimeString('ko-KR', { hour12: false })} ${line}`)
   })
+} else if (cmd === 'answer') {
+  // 화면의 '확정 대기'를 시험: 허브는 모드·경보 해제를 상태로 확정, 현관은 허락에 문을 연다.
+  // 현관은 허락이 두 길(허브 브로커, 현관 직통)로 와도 같은 id 는 한 번만 처리한다.
+  // --broker 를 여러 번 줄 수 없으니 현관 직통 브로커는 --door mqtt://localhost:1884 로 따로 준다
+  const door = option('door')
+  const seen = new Set()
+  const send = (c, topic, body, retain = false) => c.publish(topic, JSON.stringify({ ...body, t: t() }), { qos: 1, retain })
+  const listen = (c, name) => {
+    c.on('error', (err) => console.error(`${name} 접속 실패: ${err.message}`))
+    c.on('connect', () => {
+      c.subscribe('home/cmd/#', { qos: 1 })
+      console.log(`${name}: 명령에 답하는 중`)
+    })
+    c.on('message', (topic, payload) => {
+      const msg = JSON.parse(payload.toString() || '{}')
+      if (topic === 'home/cmd/mode') send(c, 'home/state/mode', { mode: msg.mode }, true)
+      else if (topic === 'home/cmd/dismiss') send(c, 'home/state/suspicion', { level: 0 }, true)
+      else if (topic === 'home/cmd/approve') {
+        if (seen.has(msg.id)) return console.log(`${name}: 허락 ${msg.id} 이미 처리함 (중복 무시)`)
+        seen.add(msg.id)
+        console.log(`${name}: 허락 ${msg.id} req=${msg.req ?? '-'} → 문 열기`)
+        if (msg.ok) setTimeout(() => send(c, 'home/door/open', { state: 'open', by: 'approve', id: msg.id }), 500)
+      } else return
+      console.log(`${name}: ${topic} ${payload}`)
+    })
+  }
+  listen(connect(), '허브')
+  if (door) listen(mqtt.connect(door, { username: user, password: pass }), '현관 직통')
 } else {
-  console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(0, 18).join('\n'))
+  console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(0, 19).join('\n'))
 }
