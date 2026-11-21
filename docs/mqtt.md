@@ -9,7 +9,7 @@
 - 주소는 common/config.json 한 곳에서만 읽기
 
 ## 공통 규칙
-- 브로커: 주 hub.local / 예비 door.local, 포트 1883
+- 브로커: 주 hub.local / 예비 door.local, 포트 1883 (월패드·폰 웹 화면은 WebSocket 9001)
 - 토픽: home/<노드>/<내용>, 소문자
 - 메시지: JSON, 모든 메시지에 "t"(보낸 시각) 포함
 - QoS: 상태, 경보, 명령은 1 / 살아 있음 신호는 0
@@ -30,7 +30,7 @@
 | 토픽 | 내용 | 페이로드 예시 | 비고 |
 |---|---|---|---|
 | `home/door/auth` | 인증 결과 | `{"result":"ok","method":"card+pw","face":"match","score":3}` | |
-| `home/door/open` | 문 열림 | `{"state":"open","by":"auth"}` | |
+| `home/door/open` | 문 열림 | `{"state":"open","by":"auth"}` | `by`: `auth`(인증), `approve`(월패드·폰 허락) |
 | `home/door/loiter` | 서성임 | `{"state":"start"}` → `{"state":"over30"}` → `{"state":"end"}` | |
 | `home/door/visitor` | 방문자 사진 | `{"img":"base64"}` | |
 | `home/door/exit` | 나가기 버튼 | | |
@@ -57,8 +57,8 @@
 | `home/cmd/living/camera` | 카메라 켜기 | `{"on":1,"sec":10}` | |
 
 ### ④ 월패드, 폰 → 허브 (이 둘만 발행 가능)
-| 토픽 | 내용 | 페이로드 예시 |
-|---|---|---|
-| `home/cmd/mode` | 모드 변경 | `{"mode":"away"}` |
-| `home/cmd/approve` | 출입 허락 | `{"ok":1}` |
-| `home/cmd/dismiss` | 경보 해제 | |
+| 토픽 | 내용 | 페이로드 예시 | 비고 |
+|---|---|---|---|
+| `home/cmd/mode` | 모드 변경 | `{"mode":"away"}` | |
+| `home/cmd/approve` | 출입 허락 | `{"ok":1}` | 현관이 직접 구독해서 문을 연다 |
+| `home/cmd/dismiss` | 경보 해제 | | |
