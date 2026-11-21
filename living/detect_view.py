@@ -2,6 +2,7 @@
 
     python -m living.detect_view                         # config.json 의 카메라
     python -m living.detect_view --source videos/a.mp4   # 녹화 영상
+    python -m living.detect_view --source 1              # 웹캠 1번
     python -m living.detect_view --type effdet           # 모델 바꾸기
     python -m living.detect_view --no-show               # 화면 없이 속도만(파이 SSH 등)
 
@@ -26,6 +27,8 @@ cfg = json.load(open("living/config.json", encoding="utf-8"))
 if args.type:
     cfg["detector"]["type"] = args.type
 source = args.source or cfg["camera"]["source"]
+if isinstance(source, str) and source.isdigit():   # --source 1 → 웹캠 1번
+    source = int(source)
 
 detector = make_detector(cfg["detector"])
 times = []
