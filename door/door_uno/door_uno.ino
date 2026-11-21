@@ -1,13 +1,16 @@
 // 현관 우노: 부품을 읽고 움직이기만 한다. 판단은 Pi가 한다.
 //
 // 우노 -> Pi (9600, 한 줄씩): READY / BTN / IR:0x0C / DIST:25 (못 재면 DIST:-1) / CARD:A1B2C3D4
-// Pi -> 우노: LCD0:글자 / LCD1:글자 / BEEP:주파수,밀리초
+// Pi -> 우노: LCD0:글자 / LCD1:글자 / BEEP:주파수,밀리초 / DOOR:OPEN / DOOR:LOCK
 //
 // Pi가 LCD 명령을 보내기 전에는 LCD에 센서 값과 카드 번호를 보여 줘서 우노만으로 부품을 확인할 수 있다.
+// 이때 버튼을 누르면 서보가 열림과 잠김을 번갈아 움직인다 (각도 맞추기용).
 // 카드 리더 RC522는 라이브러리 관리자에서 "MFRC522" (GithubCommunity)를 설치해야 컴파일된다.
+// 서보는 Arduino IDE에 들어 있는 Servo 라이브러리를 쓴다 (따로 설치할 것 없음).
 #include <SPI.h>
 #include <Wire.h>
 #include <MFRC522.h>
+#include <Servo.h>
 
 const uint8_t LCD_ADDRESS = 0x3F;
 const uint8_t BUTTON_PIN = 2;
@@ -17,6 +20,12 @@ const uint8_t ECHO_PIN = 9;
 const uint8_t BUZZER_PIN = 6;      // D12는 카드 리더(MISO)가 써서 D6으로 옮김
 const uint8_t RC522_SS_PIN = 10;   // RC522 SDA. SPI는 D11(MOSI), D12(MISO), D13(SCK) 고정
 const uint8_t RC522_RST_PIN = 7;
+const uint8_t SERVO_PIN = 5;       // SG90 주황(신호) 선
+
+// 서보 각도. 문에 붙인 뒤 버튼으로 움직여 보고 맞게 고친다 (0~180).
+const uint8_t LOCK_ANGLE = 0;      // 잠김: 걸쇠가 문을 막는 위치
+const uint8_t OPEN_ANGLE = 90;     // 열림: 걸쇠가 비켜난 위치
+const unsigned long SERVO_MOVE_MS = 700;  // 다 돌 때까지 기다린 뒤 신호를 끊는다
 
 const uint8_t LCD_RS = 0x01;
 const uint8_t LCD_ENABLE = 0x04;
@@ -37,6 +46,10 @@ volatile uint32_t irFrame = 0;
 volatile bool irFrameReady = false;
 
 MFRC522 cardReader(RC522_SS_PIN, RC522_RST_PIN);
+Servo doorServo;
+bool doorOpen = false;
+bool servoMoving = false;
+unsigned long servoStartTime = 0;
 char lastCard[21] = "";
 unsigned long lastCardTime = 0;
 unsigned long lastCardPoll = 0;
@@ -195,6 +208,26 @@ void checkCard() {
   }
 }
 
+// 서보를 움직인다. 각도를 먼저 정하고 attach해야 켜질 때 엉뚱한 곳(90도)으로 튀지 않는다.
+void setDoor(bool open) {
+  doorOpen = open;
+  doorServo.write(open ? OPEN_ANGLE : LOCK_ANGLE);
+  if (!doorServo.attached()) {
+    doorServo.attach(SERVO_PIN);
+  }
+  servoMoving = true;
+  servoStartTime = millis();
+}
+
+// 다 돌았으면 신호를 끊는다. 멈춰 있는 동안 떨리거나 윙 소리가 나지 않고 전류도 덜 쓴다.
+// SG90은 기어가 빡빡해서 신호를 끊어도 걸쇠 정도는 그 자리에 머문다.
+void checkServo() {
+  if (servoMoving && millis() - servoStartTime >= SERVO_MOVE_MS) {
+    doorServo.detach();
+    servoMoving = false;
+  }
+}
+
 void checkButton() {
   bool reading = digitalRead(BUTTON_PIN);
   if (reading != lastButtonReading) {
@@ -206,6 +239,10 @@ void checkButton() {
     if (buttonState == LOW) {
       buttonCount++;
       Serial.println(F("BTN"));
+      if (!piConnected) {  // Pi 없이 우노만 켰을 때 서보 확인
+        setDoor(!doorOpen);
+        lcdLine(0, doorOpen ? "SERVO OPEN" : "SERVO LOCK");
+      }
     }
   }
 }
@@ -267,6 +304,12 @@ void handleCommand(char *line) {
   } else if (strncmp(line, "LCD1:", 5) == 0) {
     piConnected = true;
     lcdLine(1, line + 5);
+  } else if (strcmp(line, "DOOR:OPEN") == 0) {
+    piConnected = true;
+    setDoor(true);
+  } else if (strcmp(line, "DOOR:LOCK") == 0) {
+    piConnected = true;
+    setDoor(false);
   } else if (strncmp(line, "BEEP:", 5) == 0) {
     unsigned int frequency = 0;
     unsigned int duration = 0;
@@ -318,6 +361,7 @@ void setup() {
   Serial.println(version, HEX);
 
   attachInterrupt(digitalPinToInterrupt(IR_PIN), onIrEdge, CHANGE);
+  setDoor(false);  // 켜지면 잠근다 (우노가 다시 시작돼도 문이 열린 채로 남지 않게)
 
   const unsigned int notes[] = {1047, 1319, 1568};
   for (uint8_t i = 0; i < 3; i++) {
@@ -329,6 +373,7 @@ void setup() {
 
 void loop() {
   readSerial();
+  checkServo();
   checkButton();
   checkIr();
   checkCard();

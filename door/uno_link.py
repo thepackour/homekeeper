@@ -77,5 +77,9 @@ class Uno:
         self._send(f"BEEP:{frequency},{milliseconds}")
         self.busy_until = monotonic() + milliseconds / 1000 + 0.02
 
+    def door(self, open_):
+        """서보로 문을 연다(True) / 잠근다(False). 각도는 우노 코드 맨 위에서 정한다."""
+        self._send("DOOR:OPEN" if open_ else "DOOR:LOCK")
+
     def close(self):
         self.serial.close()

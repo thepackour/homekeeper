@@ -78,5 +78,9 @@ class FakeUno:
         if self.echo:
             print(f"[BEEP] {frequency}Hz {milliseconds}ms", flush=True)
 
+    def door(self, open_):
+        if self.echo:
+            print(f"[SERVO] {'OPEN' if open_ else 'LOCK'}", flush=True)
+
     def close(self):
         pass

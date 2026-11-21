@@ -1,13 +1,13 @@
 # ① 현관 (door)
 
 Pi 400 + 우노. 우노는 부품만 다루고, 판단은 Pi의 `door_node.py`가 한다. 둘은 USB 시리얼로 연결한다.
-서보가 아직 없어서 문 열림은 LCD 글자(`DOOR OPEN`)와 부저로 보여 준다.
+문 열림은 서보 SG90(우노 D5)이 걸쇠를 돌리고, LCD 글자(`DOOR OPEN`)와 부저로도 알린다.
 
 ## 파일
 
 | 파일 | 하는 일 |
 |---|---|
-| `door_uno/door_uno.ino` | 우노: LCD, 부저, 나가기 버튼, IR 리모컨, 초음파, 카드 리더 RC522 |
+| `door_uno/door_uno.ino` | 우노: LCD, 부저, 나가기 버튼, IR 리모컨, 초음파, 카드 리더 RC522, 서보 SG90 |
 | `door_node.py` | 현관 메인 프로그램 (카드, 비밀번호, 얼굴, 허락, 서성임 → MQTT) |
 | `door_setup.py` | 카드와 리모컨 비밀번호 등록 → `door_data.json` (git 제외) |
 | `face_watch.py` | 카메라로 얼굴 확인, 방문자 사진 만들기 |
@@ -20,6 +20,8 @@ Pi 400 + 우노. 우노는 부품만 다루고, 판단은 Pi의 `door_node.py`�
 
 1. 우노: Arduino IDE 라이브러리 관리자에서 `MFRC522`를 설치하고 `door_uno.ino`를 업로드한다.
    LCD 첫 줄에 `RC522 OK 92`처럼 나오면 카드 리더가 연결된 것이다. `RC522 NOT FOUND`면 배선을 확인한다.
+   Pi에 꽂기 전(우노만 켰을 때) 버튼을 누르면 서보가 열림·잠김으로 번갈아 돈다. 걸쇠 위치가 안 맞으면
+   `door_uno.ino` 맨 위 `LOCK_ANGLE`, `OPEN_ANGLE`을 고쳐 다시 올린다.
 2. Pi: 저장소를 받고 필요한 것을 설치한다. `common/`도 같이 있어야 한다.
    ```bash
    git clone https://github.com/thepackour/homekeeper.git
@@ -67,7 +69,7 @@ python door_node.py --fake --no-camera --broker localhost
    4점 이상이나 경보 중(의심 단계 3)에는 비밀번호 뒤 월패드·폰 허락까지 받는다.
    네트워크가 끊겼으면 점수와 상관없이 비밀번호를 묻는다.
    LCD 첫 줄에 점수가 같이 나온다: `PASSWORD RISK 2`, `WRONG 1/3 RISK 3`, `APPROVAL RISK 4`.
-5. 문 열림: LCD `DOOR OPEN RISK 0` 5초 → `DOOR LOCKED`.
+5. 문 열림: 서보가 열림 각도로 돌고 LCD `DOOR OPEN RISK 0` 5초 → 서보가 잠김 각도로 돌아오고 `DOOR LOCKED`.
 
 - 출입에 성공하면 그 전의 서성임은 본인이었다고 보고 다음 출입 점수에서 뺀다.
 
@@ -99,3 +101,4 @@ python door_node.py --fake --no-camera --broker localhost
 | 서성임 거리 / 시작까지 머무는 시간 | 50cm 안 / 5초 | `loiter.py` 맨 위 |
 | 떠난 것으로 보는 시간 | 3초 | `loiter.py` |
 | 문 열림 시간, 허락 대기, 잠금 시간 | 5초, 60초, 30초 | `door_node.py` 맨 위 |
+| 서보 잠김 / 열림 각도 | 0도 / 90도 | `door_uno/door_uno.ino` 맨 위 |

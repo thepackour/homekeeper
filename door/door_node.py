@@ -4,7 +4,7 @@
 월패드나 폰이 보내는 출입 허락(home/cmd/approve {"ok":1})은 현관이 직접 듣고 문을 연다. 허브는 기록만 한다.
 인증 결과, 문 열림, 나가기 버튼, 서성임, 방문자 사진을 MQTT로 보낸다.
 규약은 docs/mqtt.md, 위험 점수 기준은 제안서 7.3을 따른다.
-서보가 없어서 문 열림은 LCD 글자와 부저로 보여 준다. 서보가 생기면 open_door 한 곳만 고치면 된다.
+문 열림은 서보(SG90)가 걸쇠를 돌리고, LCD 글자와 부저로도 알린다. 5초 뒤 다시 잠근다.
 
 Pi:     python3 door_node.py
 노트북: python door_node.py --fake --no-camera --broker localhost
@@ -251,6 +251,7 @@ class Door:
                 self.fail(now, "NO APPROVAL")
         elif now >= self.deadline:  # open, message
             if self.state == "open":
+                self.uno.door(False)
                 self.message(now, "DOOR LOCKED", "", seconds=1)
             else:
                 self.state = "idle"
@@ -340,11 +341,9 @@ class Door:
         self.message(now, reason, "", notes)
 
     def open_door(self, now, by, greeting, top="DOOR OPEN"):
-        """문 열기. by: "auth"(인증) / "approve"(원격 허락) / "exit"(나가기 버튼).
-
-        서보가 없어서 LCD와 부저로 보여 준다. 서보가 생기면 여기서 열기 명령을 보내면 된다.
-        """
+        """문 열기. by: "auth"(인증) / "approve"(원격 허락) / "exit"(나가기 버튼). OPEN_SEC 뒤 tick이 잠근다."""
         self.state, self.deadline = "open", now + OPEN_SEC
+        self.uno.door(True)
         self.show(top, greeting)
         self.sound(OPEN_MELODY)
         if by != "exit":  # 나가기 버튼은 home/door/exit 로 이미 알렸다
@@ -397,6 +396,7 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        uno.door(False)  # 열린 채로 끝나지 않게
         door.show("DOOR PROGRAM", "STOPPED")
         uno.close()
         if faces is not None:
