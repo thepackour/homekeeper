@@ -1,2 +1,9 @@
 common/secrets.json
 __pycache__/
+living/models/*.onnx
+living/models/*.tflite
+videos/
+captures/
+.cache/
+sweep.csv
+results.csv
