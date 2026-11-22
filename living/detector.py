@@ -1,15 +1,27 @@
 """사람 검출. 모델마다 클래스는 다르지만 detect() 모양은 같다.
 
-detect(frame) -> [(x1, y1, x2, y2, score), ...]  # 원본 프레임 픽셀 좌표, 사람만
+detect(frame) -> [(x1, y1, x2, y2, score), ...]  # 원본 프레임 픽셀 좌표, target 클래스만
+
+config 의 detector.target 으로 무엇을 셀지 고른다("person" 기본, 시연용 "teddy bear").
 """
 import cv2
 import numpy as np
 
+# 클래스 번호: (YOLO COCO 80, EfficientDet 라벨맵 90). 모델 메타데이터·labelmap.txt 에서 확인
+TARGETS = {"person": (0, 0), "teddy bear": (77, 87)}
+
+
+def class_ids(target):
+    if target not in TARGETS:
+        raise ValueError(f"모르는 target: {target} (가능: {', '.join(TARGETS)})")
+    return TARGETS[target]
+
 
 class YoloDetector:
-    """YOLOv8n / YOLO11n ONNX (onnxruntime). 사람(class 0)만 돌려준다."""
+    """YOLOv8n / YOLO11n ONNX (onnxruntime). target 클래스만 돌려준다."""
 
-    def __init__(self, model_path, imgsz=320, conf=0.4, iou=0.5):
+    def __init__(self, model_path, imgsz=320, conf=0.4, iou=0.5, target="person"):
+        self.cls = class_ids(target)[0]
         import onnxruntime as ort
         self.session = ort.InferenceSession(model_path, providers=["CPUExecutionProvider"])
         self.input_name = self.session.get_inputs()[0].name
@@ -26,7 +38,7 @@ class YoloDetector:
         blob = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)[None].astype(np.float32) / 255
 
         out = self.session.run(None, {self.input_name: blob})[0][0]   # (84, N): cx,cy,w,h + 80 클래스
-        scores = out[4]                                                # 0번 = person
+        scores = out[4 + self.cls]                                     # 4 + 클래스 번호
         keep = scores > self.conf
         if not keep.any():
             return []
@@ -48,7 +60,7 @@ class YoloDetector:
 
 
 class EfficientDetDetector:
-    """EfficientDet-Lite0 (NMS 포함 모델). 사람만 돌려준다.
+    """EfficientDet-Lite0 (NMS 포함 모델). target 클래스만 돌려준다.
 
     .onnx  → onnxruntime 으로 실행(파이 400용. models/effdet_to_onnx.py 로 변환)
     .tflite → LiteRT(ai-edge-litert 또는 tflite_runtime)로 실행
@@ -56,8 +68,9 @@ class EfficientDetDetector:
     출력 4개: 상자(1,N,4: ymin,xmin,ymax,xmax 0~1), 클래스(1,N), 점수(1,N), 개수(1).
     """
 
-    def __init__(self, model_path, conf=0.4, threads=4):
+    def __init__(self, model_path, conf=0.4, threads=4, target="person"):
         self.conf = conf
+        self.cls = class_ids(target)[1]
         if str(model_path).endswith(".onnx"):
             import onnxruntime as ort
             self.session = ort.InferenceSession(model_path, providers=["CPUExecutionProvider"])
@@ -102,7 +115,7 @@ class EfficientDetDetector:
         boxes, classes, scores = out[self.boxes_i][0], out[self.classes_i][0], out[self.scores_i][0]
         result = []
         for (y1, x1, y2, x2), c, sc in zip(boxes, classes, scores):
-            if int(c) == 0 and sc >= self.conf:            # 0 = person
+            if int(c) == self.cls and sc >= self.conf:
                 result.append((max(0.0, float(x1) * w), max(0.0, float(y1) * h),
                                min(w, float(x2) * w), min(h, float(y2) * h), float(sc)))
         return result
@@ -114,7 +127,9 @@ class EfficientDetDetector:
 def make_detector(cfg):
     """config.json 의 detector 항목으로 검출기를 만든다."""
     if cfg["type"] == "yolo":
-        return YoloDetector(cfg["yolo_model"], imgsz=cfg.get("imgsz", 320), conf=cfg.get("conf", 0.4))
+        return YoloDetector(cfg["yolo_model"], imgsz=cfg.get("imgsz", 320), conf=cfg.get("conf", 0.4),
+                            target=cfg.get("target", "person"))
     if cfg["type"] == "effdet":
-        return EfficientDetDetector(cfg["effdet_model"], conf=cfg.get("conf", 0.4))
+        return EfficientDetDetector(cfg["effdet_model"], conf=cfg.get("conf", 0.4),
+                                    target=cfg.get("target", "person"))
     raise ValueError(f"모르는 검출기: {cfg['type']}")

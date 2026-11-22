@@ -11,7 +11,8 @@
     "yolo_model": "living/models/yolo11n.onnx",
     "effdet_model": "living/models/efficientdet_lite0_rpi.onnx",
     "imgsz": 320,
-    "conf": 0.4
+    "conf": 0.3,
+    "target": "person"
   },
   "tracker": {
     "max_dist": 0.25,
