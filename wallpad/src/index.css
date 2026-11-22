@@ -716,3 +716,259 @@ button:disabled {
 .pin-keys button:active {
   background: #eef1f5;
 }
+
+/* ---------- 월패드 작은 화면 (Waveshare 4인치 480x800 세로, 돌리면 800x480 가로) ----------
+   저항막 터치라 화면 가장자리는 잘 안 눌린다. 그래서
+   - 바깥에 넉넉한 여백(--edge)을 두어 버튼이 가장자리에 붙지 않게 하고
+   - 페이지 전체가 한 화면에 들어가게 하고, 넘치는 건 '기록' 칸 안에서만 스크롤
+   - 스크롤바는 숨기고 칸 안을 끌어서 넘긴다(dragScroll.js)
+   내용(글, 버튼, 기능)은 큰 화면과 같다. 배치만 바뀐다. */
+@media (max-width: 520px), (max-height: 520px) {
+  :root {
+    --edge: 20px;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  * {
+    scrollbar-width: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app {
+    height: 100%;
+    min-height: 0;
+    padding: var(--edge);
+    gap: 8px;
+    display: grid;
+    overflow: hidden;
+  }
+
+  .cards {
+    display: contents;
+  }
+
+  .topbar h1 {
+    font-size: 16px;
+  }
+
+  .topbar-right {
+    gap: 10px;
+    font-size: 13px;
+  }
+
+  .topbar-right .date,
+  .conn small {
+    display: none;
+  }
+
+  .btn-text {
+    padding: 6px 4px;
+  }
+
+  .band {
+    padding: 8px 14px 10px;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .band-title {
+    font-size: 30px;
+  }
+
+  .band-note {
+    font-size: 13px;
+  }
+
+  .btn-dismiss {
+    padding: 12px 16px;
+    font-size: 16px;
+  }
+
+  .nodes {
+    font-size: 13px;
+    gap: 4px 12px;
+  }
+
+  .judge {
+    margin-left: auto;
+  }
+
+  .card,
+  .log {
+    padding: 10px 12px 12px;
+    min-width: 0;
+  }
+
+  .card-value {
+    font-size: 26px;
+  }
+
+  .card-sub {
+    margin-bottom: 8px;
+    font-size: 12px;
+  }
+
+  .seg button {
+    padding: 12px 0;
+  }
+
+  .loiter {
+    font-size: 15px;
+  }
+
+  .risk {
+    margin-bottom: 8px;
+  }
+
+  /* 기록: 남는 높이를 다 쓰고, 넘치면 이 칸 안에서만 끌어서 스크롤 */
+  .log {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .log ol {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .log li {
+    grid-template-columns: 70px 1fr;
+    padding: 6px 0;
+    font-size: 13px;
+  }
+
+  /* 설정, PIN, 로그인 창도 가장자리에서 떨어지게 */
+  .sheet-backdrop {
+    padding: var(--edge);
+  }
+
+  .sheet,
+  .login-card {
+    padding: 16px;
+    gap: 10px;
+  }
+
+  .pin-keys button {
+    padding: 12px 0;
+  }
+}
+
+/* 세로 (480x800): 위에서 아래로. 모드·인원은 나란히, 현관은 사진 왼쪽 / 내용 오른쪽 */
+@media (max-width: 520px) {
+  .app {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
+    grid-template-areas:
+      'top top'
+      'band band'
+      'nodes nodes'
+      'mode people'
+      'door door'
+      'log log';
+  }
+
+  .card-door:has(.visitor) {
+    display: grid;
+    grid-template-columns: 44% 1fr;
+    column-gap: 12px;
+    align-content: start;
+  }
+
+  .card-door:has(.visitor) > * {
+    grid-column: 2;
+  }
+
+  .card-door:has(.visitor) > .card-label {
+    grid-column: 1 / -1;
+  }
+
+  .card-door .visitor {
+    grid-column: 1;
+    grid-row: 2 / span 6;
+    margin: 4px 0 0;
+  }
+
+  .card-door .visitor img {
+    height: 120px;
+  }
+}
+
+/* 가로 (800x480): 왼쪽에 상태·모드·인원·기록, 오른쪽 세로 칸에 현관 */
+@media (max-height: 520px) and (min-width: 521px) {
+  .app {
+    grid-template-columns: 1fr 1fr 1.1fr;
+    grid-template-rows: auto auto auto auto minmax(0, 1fr);
+    grid-template-areas:
+      'top top top'
+      'band band door'
+      'nodes nodes door'
+      'mode people door'
+      'log log door';
+  }
+
+  .band-title {
+    font-size: 26px;
+  }
+
+  .card-door {
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .card-door .visitor img {
+    height: 90px;
+  }
+
+  /* 현관 칸이 넘쳐도 '출입 허락' 버튼은 항상 칸 아래쪽에 보이게 (칸 안 내용만 끌어서 스크롤) */
+  .card-door .btn-primary {
+    position: sticky;
+    bottom: 0;
+    margin-top: 8px;
+    padding: 12px 0;
+    box-shadow: 0 -8px 8px var(--card);
+  }
+}
+
+@media (max-width: 520px), (max-height: 520px) {
+  .topbar {
+    grid-area: top;
+  }
+
+  .band {
+    grid-area: band;
+  }
+
+  .nodes {
+    grid-area: nodes;
+  }
+
+  .card-mode {
+    grid-area: mode;
+  }
+
+  .card-people {
+    grid-area: people;
+  }
+
+  .card-door {
+    grid-area: door;
+  }
+
+  .log {
+    grid-area: log;
+  }
+}

@@ -117,7 +117,7 @@ function Home({ login, brokers, onAuthFail, onLogout, onBrokers }) {
       <NodeRow home={home} online={online} />
 
       <div className="cards">
-        <section className="card">
+        <section className="card card-mode">
           <h2 className="card-label">보안 모드</h2>
           <p className="card-value">{home.mode ? label(MODES, home.mode.value) : '—'}</p>
           <p className="card-sub">
@@ -143,7 +143,7 @@ function Home({ login, brokers, onAuthFail, onLogout, onBrokers }) {
           </div>
         </section>
 
-        <section className="card">
+        <section className="card card-people">
           <h2 className="card-label">집 안 인원</h2>
           <p className="card-value">
             {home.occupancy ? home.occupancy.n : '—'}
@@ -308,7 +308,7 @@ const APPROVAL_TEXT = {
 function DoorCard({ door, approval, canApprove, onApprove }) {
   const { open, loiter, visitor } = door
   return (
-    <section className="card">
+    <section className="card card-door">
       <h2 className="card-label">현관</h2>
       {visitor && (
         <figure className="visitor">
