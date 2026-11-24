@@ -21,7 +21,7 @@ from pathlib import Path
 
 HUB_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(HUB_DIR.parent))          # 레포 맨 위 (common 모듈)
-from common.mqtt_node import Node  # noqa: E402
+from common.mqtt_node import Node, load_config  # noqa: E402
 
 CFG = json.load(open(HUB_DIR / "config.json", encoding="utf-8"))
 try:  # ntfy 토픽 (git에 안 올림). 없으면 폰 알림은 로그로만
@@ -131,7 +131,9 @@ def notify(title, message, priority=3, tags=None):
 
 
 # ------------------------------------------------------------------ 발행
-node = Node("hub")
+_cfg = load_config()
+_cfg["brokers"][0] = dict(_cfg["brokers"][0], host="localhost")  # 허브 Pi는 자기 브로커에 바로 붙음
+node = Node("hub", _cfg)
 
 
 def pub_state():
